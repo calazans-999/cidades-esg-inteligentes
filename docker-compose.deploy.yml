@@ -1,0 +1,50 @@
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME obrigatorio}
+      POSTGRES_USER: ${DB_USER:?DB_USER obrigatorio}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD obrigatorio}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - esg-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: ${APP_IMAGE:?APP_IMAGE obrigatoria}
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:${APP_PORT:?APP_PORT obrigatoria}:8080"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:?Perfil obrigatorio}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - esg-network
+
+volumes:
+  postgres_data:
+
+networks:
+  esg-network:
+    driver: bridge
